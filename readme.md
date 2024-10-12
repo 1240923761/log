@@ -2,7 +2,7 @@
 ```go
 func main() {
     log.SetWXAddress("set your wxBOT here.")
-	log.Debug(nil, "debug here")
+    log.Debug(nil, "debug here")
     log.WX(nil, "trace_id")
 }
 ```

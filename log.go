@@ -3,7 +3,7 @@ package log
 import (
 	"context"
 	"fmt"
-	"gitcode.com/peachesone/log/ulog"
+	"github.com/1240923761/log/ulog"
 	"github.com/google/uuid"
 )
 

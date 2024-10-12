@@ -1,4 +1,4 @@
-module gitcode.com/peachesone/log
+module github.com/1240923761/log
 
 go 1.20
 

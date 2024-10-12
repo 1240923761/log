@@ -1,6 +1,6 @@
 package main
 
-import "gitcode.com/peachesone/log"
+import "github.com/1240923761/log"
 
 func main() {
 	log.SetWXAddress("")

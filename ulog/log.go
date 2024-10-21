@@ -1,131 +1,114 @@
 package ulog
 
 import (
-	"github.com/fatih/color"
+	"context"
+	"fmt"
+	"github.com/1240923761/log/entity"
+	"github.com/1240923761/log/formatter"
+	"github.com/1240923761/log/hook"
+	"github.com/1240923761/log/util"
 	"io"
 	"sync"
-	"time"
-)
-
-type LogLevel uint32
-
-const (
-	LogLevelDebug = iota
-	LogLevelInfo
-	LogLevelWarn
-	LogLevelError
-	LogLevelPanic
-	LogLevelFatal
-	LogLevelWX
 )
 
 type logger struct {
 	sync.Mutex
-	timeFormat string
-	writer     io.Writer
-	level      LogLevel
-	debug      func(prefix, timestamp, msg string, data ...any)
-	info       func(prefix, timestamp, msg string, data ...any)
-	warn       func(prefix, timestamp, msg string, data ...any)
-	error      func(prefix, timestamp, msg string, data ...any)
-	panic      func(prefix, timestamp, msg string, data ...any)
-	fatal      func(prefix, timestamp, msg string, data ...any)
-	wx         func(wxAddress, prefix, timestamp, msg string, data ...any)
-	wxAddress  string
+	formatter                       formatter.Formatter
+	writer                          io.Writer
+	debug, info, warn, error, fatal io.Writer
+	level                           util.LogLevel
+	hooks                           []hook.Hook
 }
 
-var (
-	red    = color.New(color.FgRed)
-	hired  = color.New(color.FgHiRed)
-	green  = color.New(color.FgGreen)
-	yellow = color.New(color.FgYellow)
-	white  = color.New(color.FgWhite)
-	blue   = color.New(color.FgBlue)
-)
-
-func (l *logger) SetTimeFormat(format string) {
-	l.Lock()
-	defer l.Unlock()
-	l.timeFormat = format
-}
-func (l *logger) SetWXAddress(addr string) {
-	l.Lock()
-	defer l.Unlock()
-	l.wxAddress = addr
-}
-func (l *logger) SetLogLevel(level LogLevel) {
+func (l *logger) SetLogLevel(level util.LogLevel) {
 	l.Lock()
 	defer l.Unlock()
 
-	if level > LogLevelDebug {
-		l.debug = nilLogger
+	if level > util.LogLevelDebug {
+		l.debug = _nilWriter
 	} else {
-		l.debug = normalLogger
+		l.debug = l.writer
 	}
 
-	if level > LogLevelInfo {
-		l.info = nilLogger
+	if level > util.LogLevelInfo {
+		l.info = _nilWriter
 	} else {
-		l.info = normalLogger
+		l.info = l.writer
 	}
 
-	if level > LogLevelWarn {
-		l.warn = nilLogger
+	if level > util.LogLevelWarn {
+		l.warn = _nilWriter
 	} else {
-		l.warn = normalLogger
+		l.warn = l.writer
 	}
 
-	if level > LogLevelError {
-		l.error = nilLogger
+	if level > util.LogLevelError {
+		l.error = _nilWriter
 	} else {
-		l.error = normalLogger
+		l.error = l.writer
 	}
 
-	if level > LogLevelPanic {
-		l.panic = nilLogger
-	} else {
-		l.panic = panicLogger
+	l.level = level
+}
+
+func (l *logger) SetFormatter(formatter formatter.Formatter) {
+	l.Lock()
+	defer l.Unlock()
+
+	l.formatter = formatter
+}
+
+func (l *logger) SetWriter(writer io.Writer) {
+	l.Lock()
+	defer l.Unlock()
+
+	l.writer = writer
+}
+
+func (l *logger) AddHooks(hooks ...hook.Hook) {
+	l.Lock()
+	defer l.Unlock()
+
+	for idx := range hooks {
+		if hooks[idx] == nil {
+			l.hooks = append(l.hooks, hooks[idx])
+		}
 	}
-
-	if level > LogLevelFatal {
-		l.fatal = nilLogger
-	} else {
-		l.fatal = fatalLogger
-	}
-	if level > LogLevelWX {
-		l.wx = wxNilLogger
-	} else {
-		l.wx = wxLogger
-	}
 }
 
-func (l *logger) Debug(msg string, data ...any) {
-	l.debug(white.Sprint("FILEBEATS [DEBUG] "), time.Now().Format(l.timeFormat), msg, data...)
+func (l *logger) Debug(ctx context.Context, msg string, data ...any) {
+	e := entity.NewEntity(ctx)
+	e.Debug(msg, data...)
+
+	fmt.Fprintln(l.debug, l.formatter.Format(e))
 }
 
-func (l *logger) Info(msg string, data ...any) {
-	l.info(green.Sprint("FILEBEATS [INFO] "), time.Now().Format(l.timeFormat), msg, data...)
+func (l *logger) Info(ctx context.Context, msg string, data ...any) {
+	e := entity.NewEntity(ctx)
+	e.Info(msg, data...)
+	fmt.Fprintln(l.info, l.formatter.Format(e))
 }
 
-func (l *logger) Warn(msg string, data ...any) {
-	l.warn(yellow.Sprint("FILEBEATS [WARN] "), time.Now().Format(l.timeFormat), msg, data...)
+func (l *logger) Warn(ctx context.Context, msg string, data ...any) {
+	e := entity.NewEntity(ctx)
+	e.Warn(msg, data...)
+	fmt.Fprintln(l.warn, l.formatter.Format(e))
 }
 
-func (l *logger) Error(msg string, data ...any) {
-	l.error(red.Sprint("FILEBEATS [ERROR] "), time.Now().Format(l.timeFormat), msg, data...)
+func (l *logger) Error(ctx context.Context, msg string, data ...any) {
+	e := entity.NewEntity(ctx)
+	e.Error(msg, data...)
+	fmt.Fprintln(l.error, l.formatter.Format(e))
 }
 
-func (l *logger) Panic(msg string, data ...any) {
-	l.panic(hired.Sprint("FILEBEATS [PANIC] "), time.Now().Format(l.timeFormat), msg, data...)
+func (l *logger) Panic(ctx context.Context, msg string, data ...any) {
+	e := entity.NewEntity(ctx)
+	e.Panic(msg, data...)
+	panic(l.formatter.Format(e))
 }
 
-func (l *logger) Fatal(msg string, data ...any) {
-	l.fatal(hired.Sprint("FILEBEATS [FATAL] "), time.Now().Format(l.timeFormat), msg, data...)
-}
-func (l *logger) WX(msg string, data ...any) {
-	l.wx(l.wxAddress, blue.Sprint("FILEBEATS [WX] "), time.Now().Format(l.timeFormat), msg, data...)
-}
-
-type WroteLogger interface {
-	Info(msg string, data ...any)
+func (l *logger) Fatal(ctx context.Context, msg string, data ...any) {
+	e := entity.NewEntity(ctx)
+	e.Fatal(msg, data...)
+	fmt.Fprintln(l.writer, l.formatter.Format(e))
 }

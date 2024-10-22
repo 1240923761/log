@@ -2,7 +2,6 @@ package ulog
 
 import (
 	"context"
-	"fmt"
 	"github.com/1240923761/log/entity"
 	"github.com/1240923761/log/formatter"
 	"github.com/1240923761/log/hook"
@@ -13,11 +12,11 @@ import (
 
 type logger struct {
 	sync.Mutex
-	formatter                       formatter.Formatter
-	writer                          io.Writer
-	debug, info, warn, error, fatal io.Writer
-	level                           util.LogLevel
-	hooks                           []hook.Hook
+	formatter                formatter.Formatter
+	writer                   io.Writer
+	debug, info, warn, error io.Writer
+	level                    util.LogLevel
+	hooks                    []hook.Hook
 }
 
 func (l *logger) SetLogLevel(level util.LogLevel) {
@@ -70,7 +69,7 @@ func (l *logger) AddHooks(hooks ...hook.Hook) {
 	defer l.Unlock()
 
 	for idx := range hooks {
-		if hooks[idx] == nil {
+		if hooks[idx] != nil {
 			l.hooks = append(l.hooks, hooks[idx])
 		}
 	}
@@ -79,36 +78,35 @@ func (l *logger) AddHooks(hooks ...hook.Hook) {
 func (l *logger) Debug(ctx context.Context, msg string, data ...any) {
 	e := entity.NewEntity(ctx)
 	e.Debug(msg, data...)
-
-	fmt.Fprintln(l.debug, l.formatter.Format(e))
+	l.fprint(l.debug, e, printTypeNormal)
 }
 
 func (l *logger) Info(ctx context.Context, msg string, data ...any) {
 	e := entity.NewEntity(ctx)
 	e.Info(msg, data...)
-	fmt.Fprintln(l.info, l.formatter.Format(e))
+	l.fprint(l.info, e, printTypeNormal)
 }
 
 func (l *logger) Warn(ctx context.Context, msg string, data ...any) {
 	e := entity.NewEntity(ctx)
 	e.Warn(msg, data...)
-	fmt.Fprintln(l.warn, l.formatter.Format(e))
+	l.fprint(l.warn, e, printTypeNormal)
 }
 
 func (l *logger) Error(ctx context.Context, msg string, data ...any) {
 	e := entity.NewEntity(ctx)
 	e.Error(msg, data...)
-	fmt.Fprintln(l.error, l.formatter.Format(e))
+	l.fprint(l.error, e, printTypeNormal)
 }
 
 func (l *logger) Panic(ctx context.Context, msg string, data ...any) {
 	e := entity.NewEntity(ctx)
 	e.Panic(msg, data...)
-	panic(l.formatter.Format(e))
+	l.fprint(l.writer, e, printTypePanic)
 }
 
 func (l *logger) Fatal(ctx context.Context, msg string, data ...any) {
 	e := entity.NewEntity(ctx)
 	e.Fatal(msg, data...)
-	fmt.Fprintln(l.writer, l.formatter.Format(e))
+	l.fprint(l.writer, e, printTypeFatal)
 }

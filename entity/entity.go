@@ -11,7 +11,7 @@ type Entity struct {
 	Level  util.LogLevel
 	Msg    string
 	Args   []any
-	Fields []Field
+	Fields []*Field
 }
 
 type Field struct {
@@ -23,7 +23,7 @@ var (
 	nf = func() *Entity {
 		return &Entity{
 			Args:   make([]any, 0, 2),
-			Fields: make([]Field, 0),
+			Fields: make([]*Field, 0),
 		}
 	}
 
